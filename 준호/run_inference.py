@@ -171,56 +171,68 @@ validation_label = test_loaded['label']
 
 print(validation_input.shape, validation_label.shape)
 
-new_model = models.load_model(best_model_path, custom_objects={'iou_coef':iou_coef, 'dice_coef':dice_coef, 'dice_coef_loss':dice_coef_loss})
-new_model.summary()
 
+## inference run function
+def run_inference(array):
+    best_model_path = './models/Unet-192_192_32-Nadam_1e-4-diceloss-relu-he-batch_32-epoch.40.hdf5'
+    validation_input = np.squeeze(array, axis=0) # (576, 576)
+    validation_input = np.squeeze(validation_input, axis=-1) # (576, 576)
+    org_shape = np.squeeze(validation_input.shape)
+    validation_input = cv2.resize(src=validation_input, dsize=(192, 192), interpolation=cv2.INTER_AREA)
+    validation_input = (validation_input - np.min(validation_input))/np.max(validation_input) * 255
+    validation_input = np.expand_dims(validation_input, axis=0)
+    validation_input = np.expand_dims(validation_input, axis=-1)
+
+    new_model = models.load_model(best_model_path, custom_objects={'iou_coef':iou_coef, 'dice_coef':dice_coef, 'dice_coef_loss':dice_coef_loss})
+    new_model.summary()
+    pred = new_model.predict(validation_input)
+    pred_image = pred[:, :, :, 1] * 255
+    pred_image = np.squeeze(pred_image, axis=0) # (576, 576)
+    pred_image = cv2.resize(src=pred_image, dsize=(org_shape[0], org_shape[1]), interpolation=cv2.INTER_AREA)
+    return np.uint8(pred_image)
+
+
+## run for each file
+## And save ground truth file, prediction file, overlapped with original file saving as image file using CV2
 for slice in range(validation_input.shape[0]):
     vinput = np.expand_dims(validation_input[slice,:,:,:], axis=0)
-    pred = new_model.predict(vinput)
-    print(pred.shape)
+    n_ar = (vinput - np.min(vinput)) / np.max(vinput) * 255
+    array_image = np.expand_dims(vinput, axis=-1)
+    pred = run_inference(array_image)
     gt_img = validation_label[slice, :, :, 1] * 255
-    pr_img = pred[:, :, :, 1] * 255
-    print(pr_img.shape)
-    break
 
+    gt_sp = './res/gt1/' + str(slice) + '.png'
+    pr_sp = './res/pr1/' + str(slice) + '.png'
+    ov_sp = './res/ov1/' + str(slice) + '.png'
+    if not os.path.exists(os.path.dirname(gt_sp)):
+        os.makedirs(os.path.dirname(gt_sp))
+    if not os.path.exists(os.path.dirname(pr_sp)):
+        os.makedirs(os.path.dirname(pr_sp))
+    if not os.path.exists(os.path.dirname(ov_sp)):
+        os.makedirs(os.path.dirname(ov_sp))
 
-# new_model = models.load_model(best_model_path, custom_objects={'iou_coef':iou_coef, 'dice_coef':dice_coef, 'dice_coef_loss':dice_coef_loss})
-# new_model.summary()
-# pred = new_model.predict(validation_input)
-# print(pred.shape)
-# pred_image = pred[:,:,:,1] * 255
-# print(pred_image.shape)
-# et = time()
-# print(et - st)
-#
-# for z in range(pred.shape[0]):
-#     gt_img = validation_label[z,:,:,1] * 255
-#     pr_img = pred[z,:,:,1] * 255
-#
-#     gt_sp = './res/gt1/'+str(z)+'.png'
-#     pr_sp = './res/pr1/'+str(z)+'.png'
-#
-#     if not os.path.exists(os.path.dirname(gt_sp)):
-#         os.makedirs(os.path.dirname(gt_sp))
-#     if not os.path.exists(os.path.dirname(pr_sp)):
-#         os.makedirs(os.path.dirname(pr_sp))
-#
-#     print(np.max(gt_img), np.max(pr_img))
-#     cv2.imwrite(gt_sp, gt_img)
-#     cv2.imwrite(pr_sp, pr_img)
-# #
-# # for z in range(pred.shape[0]):
-# #     gt_img = validation_label[z,:,:,0] * 255
-# #     pr_img = pred[z,:,:,0] * 255
-# #
-# #     gt_sp = './res/gt0/'+str(z)+'.png'
-# #     pr_sp = './res/pr0/' + str(z) + '.png'
-# #
-# #     if not os.path.exists(os.path.dirname(gt_sp)):
-# #         os.makedirs(os.path.dirname(gt_sp))
-# #     if not os.path.exists(os.path.dirname(pr_sp)):
-# #         os.makedirs(os.path.dirname(pr_sp))
-# #
-# #     print(np.max(gt_img), np.max(pr_img))
-# #     cv2.imwrite(gt_sp, gt_img)
-# #     cv2.imwrite(pr_sp, pr_img)
+    cv2.imwrite(gt_sp, gt_img)
+    cv2.imwrite(pr_sp, pred)
+
+    label = pred
+    test_image = np.squeeze(vinput)
+    pred_image = label
+    pred_image = np.expand_dims(pred_image, axis=0)
+    pred_image = np.expand_dims(pred_image, axis=3)
+    G = np.zeros([1, 256, 256, 1])
+    B = np.zeros([1, 256, 256, 1])
+    R = pred_image
+    pred_image = np.concatenate((B, G, R), axis=3)
+    pred_image = np.squeeze(pred_image)
+    test_image = np.expand_dims(test_image, axis=0)
+    test_image = np.expand_dims(test_image, axis=3)
+    tR = test_image
+    tG = test_image
+    tB = test_image
+    test_image = np.concatenate((tB, tG, tR), axis=3)
+    test_image = np.squeeze(test_image)
+    test_image = test_image.astype(float)
+    w = 40
+    p = 0.0001
+    result = cv2.addWeighted(pred_image, float(100 - w) * p, test_image, float(w) * p, 0) * 255
+    cv2.imwrite(ov_sp, result)
