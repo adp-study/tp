@@ -11,9 +11,9 @@ import os
 
 
 # os.environ['CUDA_VISIBLE_DEVICES'] = '4'
-# gpu_devices = tf.config.experimental.list_physical_devices('GPU')
-# for device in gpu_devices:
-#     tf.config.experimental.set_memory_growth(device, True)
+gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+for device in gpu_devices:
+    tf.config.experimental.set_memory_growth(device, True)
 
 
 def conv2d_bn(x, filters, kernel_size, padding='same', strides=1, activation='relu'):
@@ -188,7 +188,7 @@ def dice_coef_loss(y_true, y_pred):
 
 
 def dice_coef_np(y_true, y_pred):
-    print(y_true.shape, y_pred.shape, y_true[:,:,:,1].shape , y_pred[:,:,:,1].shape)
+    # print(y_true.shape, y_pred.shape, y_true[:,:,:,1].shape , y_pred[:,:,:,1].shape)
     y_true_f = np.ndarray.flatten(y_true[:,:,:,1])
     y_pred_f = np.ndarray.flatten(y_pred[:,:,:,1])
     intersection = np.sum(np.multiply(y_true_f, y_pred_f))
@@ -220,8 +220,7 @@ validation_label = test_loaded['label']
 # ckpt_callback = ModelCheckpoint(filepath=filepath)
 
 model.compile(optimizer=Nadam(lr=1e-4), loss=dice_coef_loss, metrics=[dice_coef])
-print(train_input.shape, train_label.shape)
-
+# print(train_input.shape, train_label.shape)
 
 
 def cal_result(pred, label, one_hot=True, e=1e-6):
@@ -285,8 +284,8 @@ class CallBacks(Callback):
         # print('\r--accuracy: %s - accuracy_val: %s' % (str(round(acc, 4)), str(round(acc_val, 4))), end=100 * ' ' + '\n')
         # print()
 
-        if ep == 5 and ep == 10 and ep == 30 and ep == 50 and ep == 70 and ep == 100:
-            spath = "./SE-Res-Unet-epoch-{}.hdf5".format(ep)
+        if ep == 5 or ep == 10 or ep == 30 or ep == 50 or ep == 70 or ep == 100:
+            spath = "./SE-Res-Unet-epoch-{}-val-DSC-{}.hdf5".format(ep, vl_dsc)
             print(spath)
             self.model.save(spath)
         #     print('********************** MODEL SAVED **********************')
