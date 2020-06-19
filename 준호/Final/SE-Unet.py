@@ -10,10 +10,10 @@ import tensorflow as tf
 import os
 
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
-gpu_devices = tf.config.experimental.list_physical_devices('GPU')
-for device in gpu_devices:
-    tf.config.experimental.set_memory_growth(device, True)
+# os.environ['CUDA_VISIBLE_DEVICES'] = '4'
+# gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+# for device in gpu_devices:
+#     tf.config.experimental.set_memory_growth(device, True)
 
 
 def conv2d_bn(x, filters, kernel_size, padding='same', strides=1, activation='relu'):
@@ -61,17 +61,25 @@ def stage_downsample_block(input_tensor, filter_sizes, blocks, reduction_ratio=1
 
 
 def SE_ResNet50_downsampling(model_input, channel_size):
-    stage_1 = conv2d_bn(model_input, channel_size, (7, 7), strides=1, padding='same')  # (112, 112, 64)
-    stage_1_pool = MaxPooling2D((3, 3), strides=2, padding='same')(stage_1)  # (56, 56, 64)
-    stage_2 = stage_downsample_block(stage_1_pool, [channel_size, channel_size, channel_size*2], 3, reduction_ratio=8, stage='2')
-    stage_3 = stage_downsample_block(stage_2, [channel_size*2, channel_size*2, channel_size*4], 4, reduction_ratio=8, stage='3')  # (28, 28, 512)
-    stage_4 = stage_downsample_block(stage_3, [channel_size*4, channel_size*4, channel_size*8], 6, reduction_ratio=8, stage='4')  # (14, 14, 1024)
-    stage_5 = stage_downsample_block(stage_4, [channel_size*8, channel_size*8, channel_size*16], 3, reduction_ratio=8, stage='5')  # (7, 7, 2048)
-    return [stage_5, stage_4, stage_3, stage_2, stage_1], channel_size*16
+    #stage_1 = conv2d_bn(model_input, channel_size, (7, 7), strides=1, padding='same')  # (112, 112, 64)
+    #stage_1_pool = MaxPooling2D((3, 3), strides=2, padding='same')(stage_1)  # (56, 56, 64)
+    # stage_2 = stage_downsample_block(stage_1_pool, [channel_size, channel_size, channel_size*2], 3, reduction_ratio=8, stage='2')
+    # stage_3 = stage_downsample_block(stage_2, [channel_size*2, channel_size*2, channel_size*4], 4, reduction_ratio=8, stage='3')  # (28, 28, 512)
+    # stage_4 = stage_downsample_block(stage_3, [channel_size*4, channel_size*4, channel_size*8], 6, reduction_ratio=8, stage='4')  # (14, 14, 1024)
+    # stage_5 = stage_downsample_block(stage_4, [channel_size*8, channel_size*8, channel_size*16], 3, reduction_ratio=8, stage='5')  # (7, 7, 2048)
+    # return [stage_5, stage_4, stage_3, stage_2, stage_1], channel_size*16
+
+    stage_1 = stage_downsample_block(model_input, [channel_size, channel_size, channel_size * 2], 3, reduction_ratio=8, stage='2')
+    stage_2 = stage_downsample_block(stage_1, [channel_size, channel_size, channel_size * 4], 4, reduction_ratio=8, stage='3')  # (28, 28, 512)
+    stage_3 = stage_downsample_block(stage_2, [channel_size, channel_size, channel_size * 8], 6, reduction_ratio=8, stage='4')  # (14, 14, 1024)
+    stage_4 = stage_downsample_block(stage_3, [channel_size, channel_size, channel_size * 16], 3, reduction_ratio=8, stage='5')  # (7, 7, 2048)
+    stage_4_pool = MaxPooling2D((3, 3), strides=2, padding='same')(stage_4)
+    return [stage_4_pool, stage_4, stage_3, stage_2, stage_1], channel_size*16
 
 
 def stage_upsample_block(input_tensor, channel_size, upsample_target, filter_sizes=(3,3), stage=''):
     x = Conv2DTranspose(filters=channel_size // 2, kernel_size=[2, 2], strides=[2, 2], padding='valid', output_padding=[0, 0], dilation_rate=[1, 1])(input_tensor)
+    print(x, upsample_target)
     concat = Concatenate(axis=-1)([x, upsample_target])
     x = conv2d_bn(concat, channel_size, filter_sizes, strides=1, padding='same')
     x = conv2d_bn(x, channel_size, filter_sizes, strides=1, padding='same')
@@ -80,23 +88,87 @@ def stage_upsample_block(input_tensor, channel_size, upsample_target, filter_siz
 
 
 def Upsampling(layers, channel_size):
+    print(layers, channel_size)
+    #<tf.Tensor 'max_pooling2d/Identity:0' shape=(None, 16, 16, 64) dtype=float32>,
+    #<tf.Tensor 'activation_47/Identity:0' shape=(None, 32, 32, 64) dtype=float32>,
+    #<tf.Tensor 'activation_38/Identity:0' shape=(None, 64, 64, 32) dtype=float32>,
+    #<tf.Tensor 'activation_20/Identity:0' shape=(None, 128, 128, 16) dtype=float32>,
+    #<tf.Tensor 'activation_8/Identity:0' shape=(None, 256, 256, 8) dtype=float32>
+    #64
     x = layers[0]
-    x = conv2d_bn(x, channel_size, (3,3), strides=1, padding='same')
-    x = conv2d_bn(x, channel_size, (3,3), strides=1, padding='same')
-    x = Conv2DTranspose(filters=channel_size//2, kernel_size=[2, 2], strides=[2, 2], padding='valid', output_padding=[0, 0], dilation_rate=[1, 1])(x)
-    x = Concatenate(axis=-1)([x, layers[1]])
-    for i in range(1, len(layers)-1):
-        x = stage_upsample_block(x, channel_size//(2**i), layers[i+1], stage='stage_'+str(len(layers)-i))
+    print(x)
+    for i in range(len(layers)-1):
+        channel_size = channel_size // 2
+        x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+        print(x)
+        x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+        print(x)
+        x = Conv2DTranspose(filters=channel_size, kernel_size=[2, 2], strides=[2, 2], padding='valid', output_padding=[0, 0], dilation_rate=[1, 1])(x)
+        print(x)
+        x = Concatenate(axis=-1)([x, layers[i+1]])
+        print(x)
+
+    # channel_size = channel_size // 2
+    # x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+    # print(x)
+    # x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+    # print(x)
+    # x = Conv2DTranspose(filters=channel_size, kernel_size=[2, 2], strides=[2, 2], padding='valid', output_padding=[0, 0], dilation_rate=[1, 1])(x)
+    # print(x)
+    # x = Concatenate(axis=-1)([x, layers[1]])
+    # print(x)
+    # channel_size = channel_size // 2
+    # x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+    # print(x)
+    # x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+    # print(x)
+    # x = Conv2DTranspose(filters=channel_size, kernel_size=[2, 2], strides=[2, 2], padding='valid', output_padding=[0, 0], dilation_rate=[1, 1])(x)
+    # print(x)
+    # x = Concatenate(axis=-1)([x, layers[2]])
+    # print(x)
+    # channel_size = channel_size // 2
+    # x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+    # print(x)
+    # x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+    # print(x)
+    # x = Conv2DTranspose(filters=channel_size, kernel_size=[2, 2], strides=[2, 2], padding='valid', output_padding=[0, 0], dilation_rate=[1, 1])(x)
+    # print(x)
+    # x = Concatenate(axis=-1)([x, layers[3]])
+    # print(x)
+    # channel_size = channel_size // 2
+    # x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+    # print(x)
+    # x = conv2d_bn(x, channel_size, (3, 3), strides=1, padding='same')
+    # print(x)
+    # x = Conv2DTranspose(filters=channel_size, kernel_size=[2, 2], strides=[2, 2], padding='valid', output_padding=[0, 0], dilation_rate=[1, 1])(x)
+    # print(x)
+    # x = Concatenate(axis=-1)([x, layers[4]])
+    # print(x)
     return x
+    # x = layers[0]
+    # x = conv2d_bn(x, channel_size, (3,3), strides=1, padding='same')
+    # x = conv2d_bn(x, channel_size, (3,3), strides=1, padding='same')
+    # x = Conv2DTranspose(filters=channel_size//2, kernel_size=[2, 2], strides=[2, 2], padding='valid', output_padding=[0, 0], dilation_rate=[1, 1])(x)
+    # x = Concatenate(axis=-1)([x, layers[1]])
+    # for i in range(1, len(layers)-1):
+    #     x = stage_upsample_block(x, channel_size//(2**i), layers[i+1], stage='stage_'+str(len(layers)-i))
+    # return x
+    # x = layers[0]
+    # x = conv2d_bn(x, channel_size, (3,3), strides=1, padding='same')
+    # x = conv2d_bn(x, channel_size, (3,3), strides=1, padding='same')
+    # x = Conv2DTranspose(filters=channel_size//2, kernel_size=[2, 2], strides=[2, 2], padding='valid', output_padding=[0, 0], dilation_rate=[1, 1])(x)
+    # x = Concatenate(axis=-1)([x, layers[1]])
 
 
-def SE_Unet(input_shape, channel_size=8):
+
+def SE_Unet(input_shape, channel_size=16):
     model_input = Input(shape=input_shape, batch_shape=None, name='Input')
     downsamples, last_channel_size = SE_ResNet50_downsampling(model_input, channel_size)
     upsampled = Upsampling(downsamples, last_channel_size)
     model_output = conv2d_bn(upsampled, channel_size*4, kernel_size=(3,3), strides=1, padding='same')
     model_output = conv2d_bn(model_output, channel_size, kernel_size=(3, 3), strides=1, padding='same')
-    model_output = conv2d_bn(model_output,2, kernel_size=(1, 1), strides=1, padding='same')
+    # model_output = conv2d_bn(model_output,2, kernel_size=(1, 1), strides=1, padding='same')
+    model_output = Conv2D(2, [1, 1], kernel_initializer='he_normal', padding='same', strides=[1, 1], activation='softmax')(model_output)
     model = Model(inputs=model_input, outputs=model_output, name='SE-ResNet50-Unet')
     return model
 
@@ -130,11 +202,10 @@ model = SE_Unet(input_shape=(256, 256, 1), channel_size=4)
 model.summary()
 model.compile(optimizer=Nadam(lr=1e-4), loss=dice_coef_loss, metrics=[dice_coef])
 
-train_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
-test_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
-#
-# train_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
-# test_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
+# train_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
+# test_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
+train_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
+test_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
 
 train_input = train_loaded['dataset']
 train_label = train_loaded['label']
@@ -199,8 +270,9 @@ class CallBacks(Callback):
 
         tr_dsc = dice_coef_np(self.y, y_pred)
         vl_dsc = dice_coef_np(self.y_val, y_pred_val)
+        ep = epoch+1
 
-        print('Train DSC {}, Validation DSC {}'.format(tr_dsc, vl_dsc))
+        print('Epoch {} Train DSC {}, Validation DSC {}'.format(ep, tr_dsc, vl_dsc))
 
         #roc = roc_auc_score(self.y, y_pred)
         #roc_val = roc_auc_score(self.y_val, y_pred_val)
@@ -212,9 +284,10 @@ class CallBacks(Callback):
         # print('\r--specificity: %s - specificity_val: %s' % (str(round(spec, 4)), str(round(spec_val, 4))), end=100 * ' ' + '\n')
         # print('\r--accuracy: %s - accuracy_val: %s' % (str(round(acc, 4)), str(round(acc_val, 4))), end=100 * ' ' + '\n')
         # print()
-        ep = epoch+1
+
         if ep == 5 and ep == 10 and ep == 30 and ep == 50 and ep == 70 and ep == 100:
             spath = "./SE-Res-Unet-epoch-{}.hdf5".format(ep)
+            print(spath)
             self.model.save(spath)
         #     print('********************** MODEL SAVED **********************')
         #     print(' >> ', spath)
