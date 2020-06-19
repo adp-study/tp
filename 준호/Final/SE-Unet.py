@@ -15,6 +15,7 @@ gpu_devices = tf.config.experimental.list_physical_devices('GPU')
 for device in gpu_devices:
     tf.config.experimental.set_memory_growth(device, True)
 
+
 def conv2d_bn(x, filters, kernel_size, padding='same', strides=1, activation='relu'):
     x = Conv2D(filters, kernel_size, kernel_initializer='he_normal', padding=padding, strides=strides)(x)
     x = BatchNormalization()(x)
@@ -129,11 +130,11 @@ model = SE_Unet(input_shape=(256, 256, 1), channel_size=4)
 model.summary()
 model.compile(optimizer=Nadam(lr=1e-4), loss=dice_coef_loss, metrics=[dice_coef])
 
-# train_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
-# test_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
+train_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
+test_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
 #
-train_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
-test_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
+# train_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
+# test_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
 
 train_input = train_loaded['dataset']
 train_label = train_loaded['label']
@@ -211,9 +212,10 @@ class CallBacks(Callback):
         # print('\r--specificity: %s - specificity_val: %s' % (str(round(spec, 4)), str(round(spec_val, 4))), end=100 * ' ' + '\n')
         # print('\r--accuracy: %s - accuracy_val: %s' % (str(round(acc, 4)), str(round(acc_val, 4))), end=100 * ' ' + '\n')
         # print()
-        # if roc_val >= 0.8000 and sens_val >= 0.7300 and spec_val >= 0.7300:
-        #     spath = "./models/liver_epoch-{}_batch-{}_opt-{}_loss-{}_unit-{}_lr-{}_AUC-{}_Sens-{}_Spec-{}.hdf5".format(epoch, self.batch_size, self.opt, self.loss, self.unit, self.lr, roc_val, sens_val, spec_val)
-        #     self.model.save(spath)
+        ep = epoch+1
+        if ep == 5 and ep == 10 and ep == 30 and ep == 50 and ep == 70 and ep == 100:
+            spath = "./SE-Res-Unet-epoch-{}.hdf5".format(ep)
+            self.model.save(spath)
         #     print('********************** MODEL SAVED **********************')
         #     print(' >> ', spath)
         #     print(' >> ', roc_val, sens_val, spec_val)
