@@ -10,7 +10,7 @@ import tensorflow as tf
 import os
 
 
-#os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 gpu_devices = tf.config.experimental.list_physical_devices('GPU')
 for device in gpu_devices:
     tf.config.experimental.set_memory_growth(device, True)
@@ -125,13 +125,13 @@ def dice_coef_np(y_true, y_pred):
     return (2. * intersection + 1e-5) / (np.sum(y_true_f) + np.sum(y_pred_f) + 1e-5)
 
 
-model = SE_Unet(input_shape=(256, 256, 1), channel_size=8)
+model = SE_Unet(input_shape=(256, 256, 1), channel_size=4)
 model.summary()
 model.compile(optimizer=Nadam(lr=1e-4), loss=dice_coef_loss, metrics=[dice_coef])
 
 # train_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
 # test_loaded = np.load('/home/bjh/home/bjh/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
-
+#
 train_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/trainset_256.npz')
 test_loaded = np.load('E:/PythonProjects/NonDeepphi/HW/Dataset/testset_256.npz')
 
@@ -227,7 +227,7 @@ history = model.fit(train_input,
                     train_label,
                     validation_data=(validation_input, validation_label),
                     epochs=100,
-                    batch_size=8,
+                    batch_size=4,
                     verbose=2,
                     shuffle=True,
                     callbacks=[callbacks])#, callbacks=[ckpt_callback])
