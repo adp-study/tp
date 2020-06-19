@@ -118,7 +118,7 @@ def dice_coef_np(y_true, y_pred):
     print(y_true.shape, y_pred.shape, y_true[:,:,:,1].shape , y_pred[:,:,:,1].shape)
     y_true_f = np.ndarray.flatten(y_true[:,:,:,1])
     y_pred_f = np.ndarray.flatten(y_pred[:,:,:,1])
-    intersection = np.sum(np.multiply(y_true_f[:,:,:,1], y_pred_f[:,:,:,1]))
+    intersection = np.sum(np.multiply(y_true_f, y_pred_f))
     # print(np.sum(y_true_f), np.sum(y_pred_f), intersection)
     # print(2. * intersection + 1e-5)
     # print((np.sum(y_true_f) + np.sum(y_pred_f) + 1e-5))
@@ -226,7 +226,7 @@ callbacks = CallBacks(training_data=(train_input, train_label), validation_data=
 history = model.fit(train_input,
                     train_label,
                     validation_data=(validation_input, validation_label),
-                    epochs=10,
+                    epochs=100,
                     batch_size=8,
                     verbose=2,
                     shuffle=True,
