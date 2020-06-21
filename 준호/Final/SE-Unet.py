@@ -5,6 +5,7 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, GlobalAveragePooling2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Nadam
 import tensorflow.keras.backend as K
+from tensorflow.keras.utils import get_custom_objects
 import tensorflow as tf
 import os
 
@@ -153,6 +154,29 @@ def dice_coef_np(y_true, y_pred):
     y_pred_f = np.ndarray.flatten(y_pred)
     intersection = np.sum(np.multiply(y_true_f, y_pred_f))
     return (2. * intersection + 1e-5) / (np.sum(y_true_f) + np.sum(y_pred_f) + 1e-5)
+
+
+# Custom activation functions for keras
+class Mish(Activation):
+    def __init__(self, activation, **kwargs):
+        super(Mish, self).__init__(activation, **kwargs)
+        self.__name__ = 'Mish'
+
+def mish(x):
+    return x * K.tanh(K.softplus(x))
+
+get_custom_objects().update({'mish': Mish(mish)})
+
+
+class Swish(Activation):
+    def __init__(self, activation, **kwargs):
+        super(Swish, self).__init__(activation, **kwargs)
+        self.__name__ = 'Swish'
+
+def swish(x):
+    return x * K.sigmoid(x)
+
+get_custom_objects().update({'Swish': Swish(swish)})
 
 
 ## Dataset loading
