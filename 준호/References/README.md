@@ -65,9 +65,3 @@
 * U-Net: Convolutional Networks for Biomedical Image Segmentation
   ; Ronneberger, Fischer, Brox
   
-
- 
-  
-
-
-
