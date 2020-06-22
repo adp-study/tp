@@ -1,4 +1,4 @@
-## Intervertebral Disc Segmentation Train
+## Intervertebral Disc Segmentation
 
 * Total Case : 997 Case
 
@@ -14,7 +14,23 @@
 
 * Project Purpose : Segmentation performance comparison of various algorithms and preprocessing methods.
 
-* Performance Metrics : Dice score
+* Performance Metrics : Dice coefficient score(DSC)
+
+* Methodology 
+1) De-identify DICOM files
+2) get pixel array from DICOM files
+3) split patient to train / test(validation)
+4) 897 for train, 100 for test
+5) save dataset array to numpy compressed format file(.npz) - as original file
+6) resize images to (128, 128), (192, 192), (256, 256) using python, opencv and save to npz file
+7) make background label for each target label. (Network should me taught what is background and what is target.)
+8) Programming neural network and other things such as custom loss function(dice loss), 
+   custom activation function(swish, mish), custom callback object(for saving model and evaluate performance-DSC)
+9) start training
+10) evaluate to test dataset
+11) check performance measurements
+12) change parameters, and re-train
+12) pruning model weight files 
 
 
 ## References
